@@ -6,7 +6,7 @@ let messagesCache = {};     // { channelId: [messages] }
 let unreadCounts = { general:0, random:0, tech:0, agile:0 };
 let lastViewedTime = { general: Date.now(), random: Date.now(), tech: Date.now(), agile: Date.now() };
 
-const API_BASE = 'http://localhost:5500/api';
+const API_BASE = 'https://two1-chat.onrender.com';
 const CHANNELS = [
     { id: "general", name: "general", topic: "💬 Общие дискуссии", icon: "#" },
     { id: "random", name: "random", topic: "🎲 Случайные мысли", icon: "~" },
