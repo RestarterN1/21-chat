@@ -81,7 +81,7 @@ function initDefaultMessages() {
     let db = {};
     for(let ch of CHANNELS) {
         db[ch.id] = [];
-        if(ch.id === "general") db[ch.id].push({ id:generateId(), author:"Система", authorAvatar:"СИ", text:"Добро пожаловать в корпоративный чат Сбера! Используйте **жирный**, *курсив*, `код`, [ссылки](https://rabota.sber.ru)", timestamp:now-3600000, edited:false, userId:"system" });
+        if(ch.id === "general") db[ch.id].push({ id:generateId(), author:"Система", authorAvatar:"СИ", text:"Добро пожаловать в корпоративный чат! Используйте **жирный**, *курсив*, `код`, [ссылки](https://rabota.sber.ru)", timestamp:now-3600000, edited:false, userId:"system" });
         else db[ch.id].push({ id:generateId(), author:"Бот", authorAvatar:"🤖", text:`Канал #${ch.name} готов к работе`, timestamp:now-1800000, edited:false, userId:"system" });
     }
     messagesDB = db;
