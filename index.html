@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>IT Connect — Корпоративный мессенджер</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            background: #F0F7F4;  /* очень светлый сине-зеленый фон */
+            height: 100vh;
+            overflow: hidden;
+            color: #1B4F72;
+        }
+
+        /* Основной контейнер сетки */
+        .messenger {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 100vh;
+            width: 100%;
+            transition: all 0.2s;
+        }
+
+        /* ========= ЛЕВАЯ ПАНЕЛЬ (каналы) ========= */
+        .channels-panel {
+            background: #FFFFFF;
+            border-right: 1px solid #D5E8E8;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .server-header {
+            padding: 24px 20px 12px 20px;
+            border-bottom: 1px solid #D5E8E8;
+            margin-bottom: 12px;
+        }
+
+        .server-header h2 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: #1B4F72;
+            letter-spacing: -0.2px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .server-header h2 span {
+            background: #A3E4D7;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #1B4F72;
+        }
+
+        .channels-list {
+            flex: 1;
+            padding: 0 12px 20px 12px;
+        }
+
+        .channel-category {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            color: #5DADE2;
+            padding: 12px 12px 6px 12px;
+        }
+
+        .channel-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            margin: 4px 0;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #2E4053;
+            font-weight: 500;
+            background: transparent;
+        }
+
+        .channel-item:hover {
+            background: #E9F7F3;
+        }
+
+        .channel-item.active {
+            background: #A3E4D7;
+            color: #1B4F72;
+            box-shadow: 0 2px 6px rgba(118, 215, 196, 0.2);
+        }
+
+        .channel-icon {
+            font-size: 1.2rem;
+            font-weight: 500;
+            width: 28px;
+            text-align: center;
+            color: #5DADE2;
+        }
+
+        .active .channel-icon {
+            color: #1B4F72;
+        }
+
+        .channel-name {
+            font-size: 0.95rem;
+            font-weight: 500;
+            flex: 1;
+        }
+
+        /* футер левой панели (инфо) */
+        .user-mini {
+            margin-top: auto;
+            padding: 16px 20px;
+            border-top: 1px solid #D5E8E8;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #FFFFFF;
+        }
+
+        .user-mini-avatar {
+            width: 40px;
+            height: 40px;
+            background: #85C1E9;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        }
+
+        .user-mini-info {
+            flex: 1;
+        }
+
+        .user-mini-name {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #1B4F72;
+        }
+
+        .edit-name-btn {
+            background: none;
+            border: none;
+            font-size: 0.7rem;
+            color: #5DADE2;
+            cursor: pointer;
+            margin-left: 6px;
+            transition: 0.1s;
+        }
+
+        .edit-name-btn:hover {
+            color: #1B4F72;
+        }
+
+        /* ========= ЦЕНТРАЛЬНАЯ ОБЛАСТЬ (чат) ========= */
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            background: #FFFFFF;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* шапка чата */
+        .chat-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #D5E8E8;
+            background: #FFFFFF;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .channel-title {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .channel-title h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #1B4F72;
+        }
+
+        .channel-topic {
+            font-size: 0.75rem;
+            background: #F0F7F4;
+            padding: 4px 10px;
+            border-radius: 40px;
+            color: #2E4053;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #F9FDFB;
+            padding: 6px 14px 6px 10px;
+            border-radius: 40px;
+            border: 1px solid #D5E8E8;
+        }
+
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            background: #76D7C4;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #1B4F72;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #1B4F72;
+        }
+
+        /* сообщения */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #FFFFFF;
+        }
+
+        .message-card {
+            background: #FFFFFF;
+            border-radius: 16px;
+            padding: 14px 18px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #E9F0EE;
+            transition: 0.1s;
+            display: flex;
+            gap: 14px;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            background: #D5E8E8;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #1B4F72;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-meta {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+
+        .message-author {
+            font-weight: 700;
+            color: #1B4F72;
+            font-size: 0.9rem;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: #85C1E9;
+        }
+
+        .message-text {
+            font-size: 0.95rem;
+            line-height: 1.45;
+            color: #2E4053;
+            word-break: break-word;
+        }
+
+        /* область ввода */
+        .input-area {
+            padding: 18px 24px 24px 24px;
+            background: #FFFFFF;
+            border-top: 1px solid #D5E8E8;
+        }
+
+        .message-input-wrapper {
+            display: flex;
+            gap: 12px;
+            background: #F9FDFB;
+            border-radius: 60px;
+            padding: 6px 8px 6px 20px;
+            border: 1px solid #D5E8E8;
+            transition: all 0.2s;
+        }
+
+        .message-input-wrapper:focus-within {
+            border-color: #76D7C4;
+            box-shadow: 0 0 0 2px rgba(118, 215, 196, 0.2);
+        }
+
+        #messageInput {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 12px 0;
+            font-size: 0.95rem;
+            outline: none;
+            color: #1B4F72;
+            font-family: inherit;
+        }
+
+        #messageInput::placeholder {
+            color: #AAB7B8;
+        }
+
+        .send-btn {
+            background: #A3E4D7;
+            border: none;
+            border-radius: 40px;
+            padding: 0 20px;
+            font-weight: 600;
+            color: #1B4F72;
+            cursor: pointer;
+            transition: 0.15s;
+            font-family: inherit;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .send-btn:hover {
+            background: #76D7C4;
+            transform: scale(0.97);
+        }
+
+        /* адаптивность (responsive) */
+        @media (max-width: 780px) {
+            .messenger {
+                grid-template-columns: 240px 1fr;
+            }
+            .chat-header {
+                padding: 14px 18px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .messenger {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            .channels-panel {
+                max-height: 280px;
+                border-right: none;
+                border-bottom: 1px solid #D5E8E8;
+                overflow-y: auto;
+            }
+            .chat-area {
+                height: calc(100vh - 280px);
+            }
+            .server-header {
+                padding: 14px 20px;
+            }
+            .user-mini {
+                display: none; /* на малых экранах экономия места, профиль уже вверху */
+            }
+            .channel-category {
+                padding-top: 4px;
+            }
+        }
+
+        /* кастомный скролл */
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .messages-container::-webkit-scrollbar-track {
+            background: #F0F7F4;
+            border-radius: 8px;
+        }
+        .messages-container::-webkit-scrollbar-thumb {
+            background: #A3E4D7;
+            border-radius: 8px;
+        }
+
+        .channels-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+    </style>
+</head>
+<body>
+<div class="messenger">
+    <!-- Левая панель: список каналов -->
+    <aside class="channels-panel" id="channelsPanel">
+        <div class="server-header">
+            <h2>⚡ IT HUB <span>v.team</span></h2>
+        </div>
+        <div class="channels-list" id="channelsList">
+            <div class="channel-category">Текстовые каналы</div>
+            <!-- динамическое заполнение каналов -->
+        </div>
+        <div class="user-mini" id="userMiniBar">
+            <div class="user-mini-avatar" id="miniAvatar">IT</div>
+            <div class="user-mini-info">
+                <div class="user-mini-name" id="miniUsername">IT-специалист</div>
+                <button class="edit-name-btn" id="editNameMini">✎ изменить</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Центральная область: сообщения + ввод -->
+    <main class="chat-area">
+        <div class="chat-header">
+            <div class="channel-title">
+                <h3 id="currentChannelName">#general</h3>
+                <span class="channel-topic" id="channelTopic">общие обсуждения</span>
+            </div>
+            <div class="user-profile">
+                <div class="user-avatar" id="userAvatar">IT</div>
+                <span class="user-name" id="globalUsername">IT-специалист</span>
+                <button class="edit-name-btn" id="editNameGlobal" style="background: none;">✎</button>
+            </div>
+        </div>
+
+        <div class="messages-container" id="messagesContainer">
+            <!-- сообщения будут динамически -->
+            <div style="text-align: center; padding: 30px; color: #85C1E9;">Загрузка сообщений...</div>
+        </div>
+
+        <div class="input-area">
+            <div class="message-input-wrapper">
+                <input type="text" id="messageInput" placeholder="Напишите сообщение...  ✍️" autocomplete="off">
+                <button class="send-btn" id="sendMessageBtn">➤ Отправить</button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    // ---------- КОНФИГУРАЦИЯ ----------
+    const STORAGE_MESSAGES_KEY = "it_messenger_messages";
+    const STORAGE_USERNAME_KEY = "it_messenger_username";
+    const DEFAULT_USERNAME = "IT-специалист";
+
+    // Предопределённые каналы (ID, название, описание)
+    const CHANNELS = [
+        { id: "general", name: "general", topic: "💬 Общие вопросы", icon: "#" },
+        { id: "random", name: "random", topic: "🎲 Случайные обсуждения", icon: "~" },
+        { id: "frontend", name: "frontend", topic: "⚛️ React, UI, дизайн", icon: "🖥️" },
+        { id: "backend", name: "backend", topic: "🐍 Python / Node / API", icon: "⚙️" },
+        { id: "devops", name: "devops", topic: "☁️ CI/CD, Docker, облака", icon: "🔧" }
+    ];
+
+    // Список участников для имитации реального времени (боты/коллеги)
+    const TEAM_MEMBERS = [
+        { name: "Анна (PM)", avatar: "Ан" },
+        { name: "Илья Backend", avatar: "ИБ" },
+        { name: "Марина Frontend", avatar: "МF" },
+        { name: "Денис DevOps", avatar: "ДD" },
+        { name: "Ольга QA", avatar: "ОК" },
+        { name: "Кирилл Data", avatar: "КD" }
+    ];
+
+    const MOCK_PHRASES = [
+        "Обновил документацию по API", "Проверьте последний PR, пожалуйста", "Собрание через 15 минут в Google Meet",
+        "Нашел баг в форме логина, исправляю", "Деплой прошел успешно на стейджинг", "Нужна помощь с настройкой линтера",
+        "Спринт планирование завтра в 11:00", "Добавил новые тесты,覆盖率 вырос", "Кто возьмет таску по рефакторингу?",
+        "Обсудим архитектуру в канале #backend"
+    ];
+
+    // Глобальное состояние
+    let messagesDB = {};        // { channelId: [messageObj] }
+    let currentChannelId = "general";
+    let currentUsername = DEFAULT_USERNAME;
+    let realtimeInterval = null;
+
+    // Вспомогательные функции
+    function generateId() {
+        return Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+    }
+
+    // Формат времени HH:MM
+    function formatTime(timestamp) {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Инициалы для аватара (первые 2 буквы, либо 2 символа)
+    function getInitials(name) {
+        if (!name) return "??";
+        const trimmed = name.trim();
+        if (trimmed.length <= 2) return trimmed.toUpperCase();
+        // Если есть пробел: берем первую букву первого слова и первую букву последнего слова
+        const parts = trimmed.split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+        }
+        return trimmed.slice(0,2).toUpperCase();
+    }
+
+    // Сохранить все сообщения в localStorage
+    function persistMessages() {
+        localStorage.setItem(STORAGE_MESSAGES_KEY, JSON.stringify(messagesDB));
+    }
+
+    // Загрузить сообщения из localStorage или инициализировать демо-данные
+    function loadMessagesFromStorage() {
+        const raw = localStorage.getItem(STORAGE_MESSAGES_KEY);
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                // проверим, что все каналы существуют
+                for (let ch of CHANNELS) {
+                    if (!parsed[ch.id]) parsed[ch.id] = [];
+                }
+                messagesDB = parsed;
+            } catch(e) { initDefaultMessages(); }
+        } else {
+            initDefaultMessages();
+        }
+        // дополнительная проверка на пустоту каналов
+        for (let ch of CHANNELS) {
+            if (!messagesDB[ch.id]) messagesDB[ch.id] = [];
+        }
+    }
+
+    // Создать стартовые сообщения для каждого канала (демо)
+    function initDefaultMessages() {
+        const now = Date.now();
+        const demoMessages = {};
+        for (let ch of CHANNELS) {
+            const channelMessages = [];
+            if (ch.id === "general") {
+                channelMessages.push({
+                    id: generateId(),
+                    author: "Система",
+                    authorAvatar: "СИ",
+                    text: "👋 Добро пожаловать в IT-мессенджер! Здесь можно обсуждать задачи и делиться идеями.",
+                    timestamp: now - 3600000,
+                });
+                channelMessages.push({
+                    id: generateId(),
+                    author: "Анна (PM)",
+                    authorAvatar: "Ан",
+                    text: "Команда, не забываем про дейли в 10:00 ☕",
+                    timestamp: now - 1800000,
+                });
+            } else if (ch.id === "frontend") {
+                channelMessages.push({ id: generateId(), author: "Марина Frontend", authorAvatar: "МF", text: "Кто работает над компонентом таблицы? Есть идеи по оптимизации", timestamp: now - 7200000 });
+                channelMessages.push({ id: generateId(), author: "IT-специалист", authorAvatar: "IT", text: "Можно использовать виртуализацию списка", timestamp: now - 3500000 });
+            } else if (ch.id === "backend") {
+                channelMessages.push({ id: generateId(), author: "Илья Backend", authorAvatar: "ИБ", text: "Обновил зависимости в requirements.txt, проверьте", timestamp: now - 5400000 });
+            } else {
+                channelMessages.push({ id: generateId(), author: "Система", authorAvatar: "🤖", text: `Канал #${ch.name} готов к общению!`, timestamp: now - 500000 });
+            }
+            demoMessages[ch.id] = channelMessages;
+        }
+        messagesDB = demoMessages;
+        persistMessages();
+    }
+
+    // Добавить сообщение в конкретный канал и сохранить
+    function addMessageToChannel(channelId, messageObj) {
+        if (!messagesDB[channelId]) messagesDB[channelId] = [];
+        messagesDB[channelId].push(messageObj);
+        persistMessages();
+        // если это текущий открытый канал — обновляем UI
+        if (currentChannelId === channelId) {
+            renderMessagesForChannel(channelId);
+            scrollMessagesToBottom();
+        }
+    }
+
+    // Отправить сообщение от текущего пользователя
+    function sendOwnMessage(text) {
+        if (!text.trim()) return;
+        const newMessage = {
+            id: generateId(),
+            author: currentUsername,
+            authorAvatar: getInitials(currentUsername),
+            text: text.trim(),
+            timestamp: Date.now(),
+        };
+        addMessageToChannel(currentChannelId, newMessage);
+        // Очистка поля
+        document.getElementById("messageInput").value = "";
+    }
+
+    // Имитация реального времени: случайное сообщение в текущий канал от другого участника
+    function triggerMockRealtimeMessage() {
+        if (!currentChannelId) return;
+        // Случайный член команды (исключаем только если совпало с текущим пользователем? но можно и совпадение, это ок)
+        const randomMember = TEAM_MEMBERS[Math.floor(Math.random() * TEAM_MEMBERS.length)];
+        const randomPhrase = MOCK_PHRASES[Math.floor(Math.random() * MOCK_PHRASES.length)];
+        const fakeMessage = {
+            id: generateId(),
+            author: randomMember.name,
+            authorAvatar: randomMember.avatar,
+            text: randomPhrase,
+            timestamp: Date.now(),
+        };
+        addMessageToChannel(currentChannelId, fakeMessage);
+        // легкий визуальный эффект (необязательно)
+    }
+
+    // Рендер сообщений для указанного канала
+    function renderMessagesForChannel(channelId) {
+        const container = document.getElementById("messagesContainer");
+        const messages = messagesDB[channelId] || [];
+        if (!messages.length) {
+            container.innerHTML = `<div style="text-align:center; padding: 30px; color:#85C1E9;">✨ Сообщений пока нет. Напишите первое!</div>`;
+            return;
+        }
+        // сортируем по возрастанию timestamp
+        const sorted = [...messages].sort((a,b) => a.timestamp - b.timestamp);
+        container.innerHTML = sorted.map(msg => `
+            <div class="message-card">
+                <div class="message-avatar">${escapeHtml(msg.authorAvatar || getInitials(msg.author))}</div>
+                <div class="message-content">
+                    <div class="message-meta">
+                        <span class="message-author">${escapeHtml(msg.author)}</span>
+                        <span class="message-time">${formatTime(msg.timestamp)}</span>
+                    </div>
+                    <div class="message-text">${escapeHtml(msg.text)}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c;
+        });
+    }
+
+    function scrollMessagesToBottom() {
+        const container = document.getElementById("messagesContainer");
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    // Обновить UI: активный канал, заголовок, сообщения
+    function switchToChannel(channelId) {
+        currentChannelId = channelId;
+        const channel = CHANNELS.find(c => c.id === channelId);
+        if (channel) {
+            document.getElementById("currentChannelName").innerHTML = `#${channel.name}`;
+            document.getElementById("channelTopic").innerText = channel.topic;
+        }
+        // подсветка в левом меню
+        document.querySelectorAll('.channel-item').forEach(el => {
+            if (el.dataset.channelId === channelId) {
+                el.classList.add('active');
+            } else {
+                el.classList.remove('active');
+            }
+        });
+        renderMessagesForChannel(channelId);
+        scrollMessagesToBottom();
+    }
+
+    // Построить список каналов в левой панели
+    function renderChannelsSidebar() {
+        const container = document.getElementById("channelsList");
+        const categoryDiv = container.querySelector('.channel-category');
+        // очищаем, но сохраняем категорию
+        let innerHtml = `<div class="channel-category">Текстовые каналы</div>`;
+        CHANNELS.forEach(ch => {
+            innerHtml += `
+                <div class="channel-item" data-channel-id="${ch.id}">
+                    <div class="channel-icon">${ch.icon === "#" ? "#" : ch.icon}</div>
+                    <div class="channel-name">${ch.name}</div>
+                </div>
+            `;
+        });
+        container.innerHTML = innerHtml;
+        // добавим обработчики
+        document.querySelectorAll('.channel-item').forEach(el => {
+            el.addEventListener('click', (e) => {
+                const cid = el.dataset.channelId;
+                if (cid) switchToChannel(cid);
+            });
+        });
+        // подсветить текущий
+        const activeItem = document.querySelector(`.channel-item[data-channel-id="${currentChannelId}"]`);
+        if (activeItem) activeItem.classList.add('active');
+    }
+
+    // Обновление имени пользователя (глобально)
+    function setUsername(newName) {
+        if (!newName || newName.trim() === "") return;
+        currentUsername = newName.trim();
+        localStorage.setItem(STORAGE_USERNAME_KEY, currentUsername);
+        // обновить аватарки везде
+        const initials = getInitials(currentUsername);
+        document.getElementById("userAvatar").innerText = initials;
+        document.getElementById("globalUsername").innerText = currentUsername;
+        const miniAvatar = document.getElementById("miniAvatar");
+        if (miniAvatar) miniAvatar.innerText = initials;
+        const miniNameSpan = document.getElementById("miniUsername");
+        if (miniNameSpan) miniNameSpan.innerText = currentUsername;
+    }
+
+    function promptEditUsername() {
+        const newName = prompt("Введите ваше имя / никнейм:", currentUsername);
+        if (newName && newName.trim() !== "") {
+            setUsername(newName.trim());
+        }
+    }
+
+    // загрузить имя из хранилища
+    function loadUsername() {
+        const stored = localStorage.getItem(STORAGE_USERNAME_KEY);
+        if (stored) {
+            currentUsername = stored;
+        } else {
+            currentUsername = DEFAULT_USERNAME;
+        }
+        setUsername(currentUsername); // синхронизация UI
+    }
+
+    // остановить таймер при выгрузке
+    function initRealtimeSimulation() {
+        if (realtimeInterval) clearInterval(realtimeInterval);
+        // имитация реального времени каждые 22 секунды (оживление)
+        realtimeInterval = setInterval(() => {
+            // добавляем сообщение от "коллеги" в текущий канал
+            triggerMockRealtimeMessage();
+        }, 22000);
+    }
+
+    // Инициализация приложения
+    function init() {
+        loadMessagesFromStorage();
+        loadUsername();
+        renderChannelsSidebar();
+        // установка стартового канала
+        switchToChannel("general");
+        // обработчики отправки сообщений
+        const sendBtn = document.getElementById("sendMessageBtn");
+        const msgInput = document.getElementById("messageInput");
+        const sendHandler = () => {
+            const text = msgInput.value;
+            if (text.trim()) sendOwnMessage(text);
+        };
+        sendBtn.addEventListener("click", sendHandler);
+        msgInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                sendHandler();
+            }
+        });
+        // редактирование имени через кнопки
+        const editGlobal = document.getElementById("editNameGlobal");
+        const editMini = document.getElementById("editNameMini");
+        if (editGlobal) editGlobal.addEventListener("click", promptEditUsername);
+        if (editMini) editMini.addEventListener("click", promptEditUsername);
+        // запуск real-time симуляции
+        initRealtimeSimulation();
+        // автофокус
+        msgInput.focus();
+    }
+
+    // старт
+    window.addEventListener("DOMContentLoaded", init);
+    // очистка интервала при закрытии (необязательно, но корректно)
+    window.addEventListener("beforeunload", () => {
+        if (realtimeInterval) clearInterval(realtimeInterval);
+    });
+</script>
+</body>
+</html>
