@@ -3,57 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>IT Connect Pro — Мессенджер с анимацией и непрочитанными</title>
-    <link type="text/css" rel="stylesheet" href="css/style.css">
+    <title>IT Connect | Сбер.Технологии</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="messenger">
-    <aside class="channels-panel">
-        <div class="server-header">
-            <h2>⚡ IT HUB <span>pro</span></h2>
-            <button class="theme-toggle" id="themeToggle">💡</button>
-        </div>
-        <div class="channels-list" id="channelsList"></div>
-        <div class="user-mini">
-            <div class="user-mini-avatar" id="miniAvatar">IT</div>
-            <div class="user-mini-info">
-                <div class="user-mini-name" id="miniUsername">IT-специалист</div>
-                <button class="edit-name-btn" id="editNameMini">✎ изменить</button>
-            </div>
-        </div>
-    </aside>
-
-    <main class="chat-area">
-        <div class="chat-header">
-            <div class="channel-title"><h3 id="currentChannelName">#general</h3><span class="channel-topic" id="channelTopic"></span></div>
-            <div class="user-profile"><div class="user-avatar" id="userAvatar">IT</div><span class="user-name" id="globalUsername">IT-специалист</span><button class="edit-name-btn" id="editNameGlobal">✎</button></div>
-        </div>
-        <div class="search-bar"><input type="text" id="searchInput" class="search-input" placeholder="🔍 Поиск по сообщениям..."></div>
-        <div class="messages-container" id="messagesContainer"></div>
-        <div class="input-area">
-            <div class="message-input-wrapper">
-                <input type="text" id="messageInput" placeholder="Напишите сообщение... (Markdown: **жирный**, *курсив*, `код`)" autocomplete="off">
-                <select id="emojiSelect" class="emoji-select">
-                    <option value="😊">😊</option>
-                    <option value="😀">😀</option>
-                    <option value="😂">😂</option>
-                    <option value="😍">😍</option>
-                    <option value="👍">👍</option>
-                    <option value="❤️">❤️</option>
-                    <option value="🚀">🚀</option>
-                    <option value="🔥">🔥</option>
-                    <option value="✨">✨</option>
-                    <option value="🎉">🎉</option>
-                    <option value="💡">💡</option>
-                    <option value="🤔">🤔</option>
-                </select>
-                <label class="file-label" for="imageUpload">📷 Изображение</label>
-                <input type="file" id="imageUpload" accept="image/*" style="display:none">
-                <button class="send-btn" id="sendMessageBtn">➤ Отправить</button>
-            </div>
-        </div>
-    </main>
-</div>
+<div id="app"></div>
 
 <script src="js/script.js"></script>
 </body>

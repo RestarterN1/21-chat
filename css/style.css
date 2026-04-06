@@ -1,33 +1,32 @@
-:root {
-            --bg-body: #F0F7F4;
-            --bg-panel: #FFFFFF;
-            --border-color: #D5E8E8;
-            --text-primary: #1B4F72;
-            --text-secondary: #2E4053;
-            --accent-green: #A3E4D7;
-            --accent-green-dark: #76D7C4;
-            --accent-blue: #85C1E9;
-            --accent-blue-dark: #5DADE2;
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.03), 0 1px 2px rgba(0, 0, 0, 0.05);
-            --message-bg: #FFFFFF;
-            --input-bg: #F9FDFB;
-            --hover-bg: #E9F7F3;
+        /* ----- НОВАЯ ЦВЕТОВАЯ ПАЛИТРА (вдохновлено rabota.sber.ru) ----- */
+        :root {
+            --bg-body: #0B1A2F;        /* тёмный синий фон */
+            --bg-panel: #0F2847;        /* панели чуть светлее */
+            --border-color: #1E3A5F;
+            --text-primary: #F0F6FF;
+            --text-secondary: #B9D0F0;
+            --accent-green: #2ECC71;    /* яркий зелёный */
+            --accent-green-dark: #27AE60;
+            --accent-blue: #3498DB;     /* голубой */
+            --accent-blue-dark: #2980B9;
+            --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
+            --message-bg: #10345E;
+            --input-bg: #0A2542;
+            --hover-bg: #1A3E66;
         }
 
-        body.dark {
-            --bg-body: #121826;
-            --bg-panel: #1E2A3A;
-            --border-color: #2D3E4F;
-            --text-primary: #E0F2FE;
-            --text-secondary: #CBD5E1;
-            --accent-green: #2C7A6E;
-            --accent-green-dark: #1F5E54;
-            --accent-blue: #3B82F6;
-            --accent-blue-dark: #2563EB;
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
-            --message-bg: #263445;
-            --input-bg: #152032;
-            --hover-bg: #2A3A4A;
+        body.dark { /* оставим для совместимости, но тема уже тёмная */
+            --bg-body: #071224;
+            --bg-panel: #0B1C38;
+            --border-color: #142C4F;
+            --text-primary: #E5F0FF;
+            --text-secondary: #A0BCE0;
+            --accent-green: #2ECC71;
+            --accent-green-dark: #27AE60;
+            --accent-blue: #3498DB;
+            --accent-blue-dark: #2980B9;
+            --message-bg: #0C294C;
+            --input-bg: #071B36;
         }
 
         * {
@@ -45,6 +44,87 @@
             color: var(--text-primary);
         }
 
+        /* ----- МОДАЛЬНОЕ ОКНО ВХОДА / РЕГИСТРАЦИИ ----- */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .auth-card {
+            background: var(--bg-panel);
+            border-radius: 32px;
+            padding: 32px 28px;
+            width: 90%;
+            max-width: 420px;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.4);
+            border: 1px solid var(--border-color);
+        }
+        .auth-card h2 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .auth-card p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+        .auth-input {
+            width: 100%;
+            padding: 14px 18px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 60px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            margin-bottom: 20px;
+            outline: none;
+        }
+        .auth-input:focus {
+            border-color: var(--accent-green);
+        }
+        .auth-btn {
+            background: var(--accent-green);
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #0B1A2F;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .auth-btn:hover {
+            background: var(--accent-green-dark);
+            transform: scale(0.98);
+        }
+        .switch-auth {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        .switch-auth span {
+            color: var(--accent-blue);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .error-msg {
+            color: #E74C3C;
+            font-size: 0.8rem;
+            margin-top: -12px;
+            margin-bottom: 16px;
+        }
+
+        /* ----- ОСНОВНОЙ ИНТЕРФЕЙС (после входа) ----- */
         .messenger {
             display: grid;
             grid-template-columns: 280px 1fr;
@@ -52,7 +132,6 @@
             width: 100%;
         }
 
-        /* ========= ЛЕВАЯ ПАНЕЛЬ ========= */
         .channels-panel {
             background: var(--bg-panel);
             border-right: 1px solid var(--border-color);
@@ -68,7 +147,6 @@
             justify-content: space-between;
             align-items: center;
         }
-
         .server-header h2 {
             font-size: 1.35rem;
             font-weight: 600;
@@ -76,22 +154,19 @@
             align-items: center;
             gap: 8px;
         }
-
-        .theme-toggle {
-            background: var(--accent-green);
+        .logout-btn {
+            background: rgba(255,255,255,0.1);
             border: none;
             border-radius: 40px;
             padding: 6px 12px;
             cursor: pointer;
-            font-size: 1.2rem;
-            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 0.8rem;
         }
-
         .channels-list {
             flex: 1;
             padding: 0 12px 20px 12px;
         }
-
         .channel-category {
             font-size: 0.7rem;
             text-transform: uppercase;
@@ -99,7 +174,6 @@
             color: var(--accent-blue);
             padding: 12px 12px 6px 12px;
         }
-
         .channel-item {
             display: flex;
             align-items: center;
@@ -111,21 +185,17 @@
             color: var(--text-secondary);
             font-weight: 500;
         }
-
         .channel-left {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-
         .channel-item:hover { background: var(--hover-bg); }
         .channel-item.active {
             background: var(--accent-green);
-            color: var(--text-primary);
+            color: #0B1A2F;
         }
         .channel-icon { font-size: 1.2rem; width: 28px; text-align: center; }
-        
-        /* бейдж непрочитанных */
         .unread-badge {
             background: var(--accent-blue-dark);
             color: white;
@@ -133,10 +203,7 @@
             padding: 2px 8px;
             font-size: 0.7rem;
             font-weight: bold;
-            min-width: 22px;
-            text-align: center;
         }
-
         .user-mini {
             margin-top: auto;
             padding: 16px 20px;
@@ -155,15 +222,6 @@
             justify-content: center;
             font-weight: 600;
         }
-        .edit-name-btn {
-            background: none;
-            border: none;
-            color: var(--accent-blue);
-            cursor: pointer;
-            font-size: 0.7rem;
-        }
-
-        /* ========= ЦЕНТРАЛЬНАЯ ОБЛАСТЬ ========= */
         .chat-area {
             display: flex;
             flex-direction: column;
@@ -171,7 +229,6 @@
             height: 100vh;
             overflow: hidden;
         }
-
         .chat-header {
             padding: 18px 24px;
             border-bottom: 1px solid var(--border-color);
@@ -181,7 +238,6 @@
             flex-wrap: wrap;
             gap: 12px;
         }
-
         .channel-title h3 { font-size: 1.3rem; font-weight: 600; }
         .channel-topic {
             font-size: 0.75rem;
@@ -189,7 +245,6 @@
             padding: 4px 10px;
             border-radius: 40px;
         }
-
         .user-profile {
             display: flex;
             align-items: center;
@@ -208,11 +263,7 @@
             justify-content: center;
             font-weight: 600;
         }
-
-        /* Поиск */
-        .search-bar {
-            padding: 12px 24px 0 24px;
-        }
+        .search-bar { padding: 12px 24px 0 24px; }
         .search-input {
             width: 100%;
             padding: 10px 16px;
@@ -223,8 +274,6 @@
             font-family: inherit;
             outline: none;
         }
-
-        /* Сообщения с анимацией появления */
         .messages-container {
             flex: 1;
             overflow-y: auto;
@@ -233,7 +282,6 @@
             flex-direction: column;
             gap: 12px;
         }
-
         .message-card {
             background: var(--message-bg);
             border-radius: 16px;
@@ -245,18 +293,10 @@
             position: relative;
             animation: fadeSlideUp 0.25s ease-out;
         }
-
         @keyframes fadeSlideUp {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(12px);}
+            to { opacity: 1; transform: translateY(0);}
         }
-
         .message-avatar {
             width: 40px; height: 40px;
             background: var(--accent-blue);
@@ -277,23 +317,14 @@
         }
         .message-author { font-weight: 700; }
         .message-time { font-size: 0.7rem; color: var(--accent-blue); }
-        .message-text {
-            font-size: 0.95rem;
-            line-height: 1.45;
-            word-break: break-word;
-        }
+        .message-text { font-size: 0.95rem; line-height: 1.45; word-break: break-word; }
         .message-text img.uploaded-img {
-            max-width: 200px;
-            max-height: 200px;
-            border-radius: 12px;
-            margin-top: 8px;
+            max-width: 200px; max-height: 200px; border-radius: 12px; margin-top: 8px;
         }
         .message-actions {
             position: absolute;
-            right: 12px;
-            top: 12px;
-            display: flex;
-            gap: 8px;
+            right: 12px; top: 12px;
+            display: flex; gap: 8px;
             opacity: 0;
             transition: opacity 0.1s;
         }
@@ -305,11 +336,7 @@
             padding: 4px 8px;
             cursor: pointer;
             font-size: 0.7rem;
-            color: var(--text-secondary);
         }
-        .action-btn:hover { background: var(--accent-green); }
-
-        /* Область ввода */
         .input-area {
             padding: 18px 24px 24px 24px;
             background: var(--bg-panel);
@@ -333,9 +360,7 @@
             font-size: 0.95rem;
             outline: none;
             color: var(--text-primary);
-            font-family: inherit;
         }
-        /* выпадающий список эмодзи */
         .emoji-select {
             background: var(--accent-green);
             border: none;
@@ -343,8 +368,6 @@
             padding: 8px 12px;
             font-size: 1.2rem;
             cursor: pointer;
-            font-family: inherit;
-            color: var(--text-primary);
         }
         .file-label, .send-btn {
             background: var(--accent-green);
@@ -352,7 +375,7 @@
             border-radius: 40px;
             padding: 0 18px;
             font-weight: 600;
-            color: var(--text-primary);
+            color: #0B1A2F;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
@@ -360,8 +383,6 @@
             height: 40px;
         }
         .send-btn:hover, .file-label:hover { background: var(--accent-green-dark); }
-
-        /* Упоминания подсказки */
         .mention-suggest {
             position: absolute;
             background: var(--bg-panel);
@@ -370,14 +391,9 @@
             max-height: 150px;
             overflow-y: auto;
             z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        .mention-suggest div {
-            padding: 8px 12px;
-            cursor: pointer;
-        }
+        .mention-suggest div { padding: 8px 12px; cursor: pointer; }
         .mention-suggest div:hover { background: var(--accent-green); }
-
         @media (max-width: 640px) {
             .messenger { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
             .channels-panel { max-height: 280px; }
