@@ -1,9 +1,8 @@
-// ---------- ИНИЦИАЛИЗАЦИЯ FIREBASE ----------
+// ---------- FIREBASE ИНИЦИАЛИЗАЦИЯ ----------
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, updateProfile } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, updateDoc, deleteDoc, doc, where, getDocs, setDoc, arrayUnion, arrayRemove, Timestamp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
-// TODO: замените на свои данные из консоли Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDlzdPcaQPDfUZ9wMFFzq29fkAETUgb23g",
   authDomain: "chat-beedc.firebaseapp.com",
@@ -17,11 +16,15 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// ---------- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ----------
+// ---------- ПЕРЕМЕННЫЕ ----------
 let currentUser = null;
 let currentChannelId = "general";
 let unreadCounts = { general:0, random:0, tech:0, agile:0 };
 let lastViewedTime = { general: Date.now(), random: Date.now(), tech: Date.now(), agile: Date.now() };
+let onlineUsers = new Map(); // uid -> displayName, avatar
+let unsubscribeMessages = null;
+let unsubscribeOnline = null;
+let currentMessagesCache = [];
 
 const CHANNELS = [
     { id: "general", name: "general", topic: "💬 Общие дискуссии", icon: "#" },
@@ -38,6 +41,7 @@ function getInitials(name) {
 }
 
 function escapeHtml(str) {
+    if (!str) return '';
     return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;');
 }
 
@@ -50,30 +54,106 @@ function parseMarkdown(text) {
     let html = escapeHtml(text);
     html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    html = html.replace(/`(.*?)`/g, '<code style="background:var(--bg-body);padding:2px 6px;border-radius:6px;">$1</code>');
+    html = html.replace(/`(.*?)`/g, '<code style="background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:6px;">$1</code>');
     html = html.replace(/\[(.*?)\]\((.*?)\)/g, (match, linkText, rawUrl) => `<a href="${safeUrl(rawUrl)}" target="_blank" style="color:var(--accent-blue);">${linkText}</a>`);
     html = html.replace(/@([\wа-яё]+)/gi, '<span style="background:var(--accent-green);padding:0 4px;border-radius:12px;">@$1</span>');
     return html;
 }
 
 function formatTime(ts) {
-    return new Date(ts).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    if (!ts) return '';
+    const date = ts.toDate ? ts.toDate() : new Date(ts);
+    return date.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
 }
 
-// ---------- РАБОТА С FIRESTORE (сообщения) ----------
-// Подписка на сообщения канала в реальном времени
-let unsubscribeMessages = null;
+// ---------- ОНЛАЙН СТАТУС ----------
+async function setUserOnline(user) {
+    if (!user) return;
+    const userRef = doc(db, "users", user.uid);
+    await setDoc(userRef, {
+        displayName: user.displayName || user.email.split('@')[0],
+        avatar: getInitials(user.displayName || user.email),
+        lastSeen: Timestamp.now(),
+        online: true
+    }, { merge: true });
+    // Обновляем каждые 30 секунд
+    const interval = setInterval(() => {
+        if (currentUser) {
+            updateDoc(userRef, { lastSeen: Timestamp.now() });
+        } else {
+            clearInterval(interval);
+        }
+    }, 30000);
+}
 
+function listenOnlineUsers() {
+    if (unsubscribeOnline) unsubscribeOnline();
+    const q = query(collection(db, "users"), orderBy("displayName"));
+    unsubscribeOnline = onSnapshot(q, (snapshot) => {
+        onlineUsers.clear();
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const isOnline = data.online && (Date.now() - data.lastSeen?.toDate?.()?.getTime() < 60000);
+            onlineUsers.set(docSnap.id, { ...data, online: isOnline });
+        });
+        renderOnlineList();
+    });
+}
+
+function renderOnlineList() {
+    const container = document.getElementById("onlineList");
+    if (!container) return;
+    const onlineList = Array.from(onlineUsers.values()).filter(u => u.online);
+    container.innerHTML = onlineList.map(u => `
+        <div class="online-user">
+            <div class="online-avatar">${escapeHtml(u.avatar || getInitials(u.displayName))}</div>
+            <span>${escapeHtml(u.displayName)}</span>
+            <span class="online-status"></span>
+        </div>
+    `).join('');
+    if (onlineList.length === 0) container.innerHTML = '<div style="padding:8px; font-size:0.8rem;">Нет активных</div>';
+}
+
+// ---------- РЕАКЦИИ ----------
+async function toggleReaction(messageId, emoji) {
+    const reactionRef = doc(db, "reactions", `${messageId}_${currentUser.uid}_${emoji}`);
+    const reactionDoc = await getDocs(query(collection(db, "reactions"), where("messageId", "==", messageId), where("userId", "==", currentUser.uid), where("emoji", "==", emoji)));
+    if (!reactionDoc.empty) {
+        await deleteDoc(reactionDoc.docs[0].ref);
+    } else {
+        await setDoc(doc(db, "reactions", `${messageId}_${currentUser.uid}_${emoji}`), {
+            messageId,
+            userId: currentUser.uid,
+            emoji,
+            timestamp: Timestamp.now()
+        });
+    }
+}
+
+async function getReactionsForMessage(messageId) {
+    const q = query(collection(db, "reactions"), where("messageId", "==", messageId));
+    const snap = await getDocs(q);
+    const counts = new Map();
+    snap.forEach(doc => {
+        const emoji = doc.data().emoji;
+        counts.set(emoji, (counts.get(emoji) || 0) + 1);
+    });
+    return counts;
+}
+
+// ---------- СООБЩЕНИЯ ----------
 function subscribeToChannel(channelId) {
     if (unsubscribeMessages) unsubscribeMessages();
     const q = query(collection(db, "messages"), where("channelId", "==", channelId), orderBy("timestamp", "asc"));
-    unsubscribeMessages = onSnapshot(q, (snapshot) => {
+    unsubscribeMessages = onSnapshot(q, async (snapshot) => {
         const messages = [];
-        snapshot.forEach(doc => {
-            messages.push({ id: doc.id, ...doc.data() });
-        });
-        // Обновляем кэш и рендерим
-        window.messagesCache = messages;
+        for (const docSnap of snapshot.docs) {
+            const msg = { id: docSnap.id, ...docSnap.data() };
+            // подгружаем реакции
+            msg.reactions = await getReactionsForMessage(msg.id);
+            messages.push(msg);
+        }
+        currentMessagesCache = messages;
         if (currentChannelId === channelId) renderMessages();
         updateUnreadCounts(messages);
     });
@@ -83,23 +163,29 @@ function updateUnreadCounts(messages) {
     if (!currentUser) return;
     const lastView = lastViewedTime[currentChannelId] || 0;
     const newUnread = messages.filter(m => m.authorId !== currentUser.uid && m.timestamp?.toDate?.()?.getTime() > lastView).length;
-    if (currentChannelId === currentChannelId) unreadCounts[currentChannelId] = newUnread;
+    unreadCounts[currentChannelId] = newUnread;
     renderSidebar();
 }
 
 async function sendMessage(text, imageBase64 = null) {
     if (!text.trim() && !imageBase64) return;
-    await addDoc(collection(db, "messages"), {
-        channelId: currentChannelId,
-        authorId: currentUser.uid,
-        authorName: currentUser.displayName || currentUser.email.split('@')[0],
-        authorAvatar: getInitials(currentUser.displayName || currentUser.email),
-        text: text.trim(),
-        image: imageBase64,
-        timestamp: new Date(),
-        edited: false
-    });
-    document.getElementById("messageInput").value = "";
+    if (!currentUser) { console.error("Не авторизован"); return; }
+    try {
+        await addDoc(collection(db, "messages"), {
+            channelId: currentChannelId,
+            authorId: currentUser.uid,
+            authorName: currentUser.displayName || currentUser.email.split('@')[0],
+            authorAvatar: getInitials(currentUser.displayName || currentUser.email),
+            text: text.trim(),
+            image: imageBase64,
+            timestamp: new Date(),
+            edited: false
+        });
+        document.getElementById("messageInput").value = "";
+    } catch (err) {
+        console.error("Ошибка отправки:", err);
+        alert("Не удалось отправить: " + err.message);
+    }
 }
 
 async function editMessage(msgId, newText, newImage) {
@@ -121,7 +207,7 @@ function showAuthModal() {
     appDiv.innerHTML = `
         <div class="auth-overlay" id="authModal">
             <div class="auth-card">
-                <h2>IT Connect</h2>
+                <h2>⚡ IT Connect</h2>
                 <p>Вход / Регистрация</p>
                 <div id="authForm">
                     <input type="email" id="authEmail" class="auth-input" placeholder="Email">
@@ -170,6 +256,13 @@ function showAuthModal() {
                 }
                 const userCred = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCred.user, { displayName: username });
+                // Сохраняем в коллекцию users
+                await setDoc(doc(db, "users", userCred.user.uid), {
+                    displayName: username,
+                    avatar: getInitials(username),
+                    lastSeen: Timestamp.now(),
+                    online: true
+                });
             }
         } catch (err) {
             errorDiv.innerText = err.message;
@@ -190,6 +283,10 @@ function renderMainUI() {
                     <button class="logout-btn" id="logoutBtn">🚪 Выйти</button>
                 </div>
                 <div class="channels-list" id="channelsList"></div>
+                <div class="online-users-section">
+                    <div class="online-header">🟢 В сети · <span id="onlineCount">0</span></div>
+                    <div class="online-list" id="onlineList"></div>
+                </div>
                 <div class="user-mini">
                     <div class="user-mini-avatar" id="miniAvatar">${getInitials(currentUser.displayName || currentUser.email)}</div>
                     <div class="user-mini-info">
@@ -201,22 +298,20 @@ function renderMainUI() {
             <main class="chat-area">
                 <div class="chat-header">
                     <div class="channel-title"><h3 id="currentChannelName">#general</h3><span class="channel-topic" id="channelTopic"></span></div>
-                    <div class="user-profile"><div class="user-avatar">${getInitials(currentUser.displayName || currentUser.email)}</div><span class="user-name">${escapeHtml(currentUser.displayName || currentUser.email)}</span></div>
+                    <div class="user-profile" id="userProfileBtn">
+                        <div class="user-avatar">${getInitials(currentUser.displayName || currentUser.email)}</div>
+                        <span class="user-name">${escapeHtml(currentUser.displayName || currentUser.email)}</span>
+                    </div>
                 </div>
                 <div class="search-bar"><input type="text" id="searchInput" class="search-input" placeholder="🔍 Поиск по сообщениям..."></div>
                 <div class="messages-container" id="messagesContainer"></div>
                 <div class="input-area">
                     <div class="message-input-wrapper">
                         <input type="text" id="messageInput" placeholder="Напишите сообщение... (Markdown, @упоминания)">
-                        <select id="emojiSelect" class="emoji-select">
-                            <option value="">😊 Смайлик</option>
-                            <option value="😀">😀</option><option value="😂">😂</option>
-                            <option value="👍">👍</option><option value="❤️">❤️</option>
-                            <option value="🚀">🚀</option>
-                        </select>
-                        <label class="file-label" for="imageUpload">📷 Изображение</label>
+                        <button class="emoji-picker-btn" id="emojiPickerBtn">😊</button>
+                        <label class="file-label" for="imageUpload">📷</label>
                         <input type="file" id="imageUpload" accept="image/*" style="display:none">
-                        <button class="send-btn" id="sendMessageBtn">➤ Отправить</button>
+                        <button class="send-btn" id="sendMessageBtn">➤</button>
                     </div>
                 </div>
             </main>
@@ -225,17 +320,21 @@ function renderMainUI() {
 
     renderSidebar();
     switchToChannel("general");
+    listenOnlineUsers();
+    setUserOnline(currentUser);
 
+    // Логаут
     document.getElementById("logoutBtn").addEventListener("click", () => {
         auth.signOut();
         window.location.reload();
     });
 
+    // Редактирование имени
     document.getElementById("editNameMini").addEventListener("click", async () => {
         const newName = prompt("Новое имя:", currentUser.displayName);
         if (newName && newName.trim()) {
             await updateProfile(currentUser, { displayName: newName.trim() });
-            // Обновляем все сообщения пользователя (Firestore update)
+            // Обновляем все сообщения пользователя
             const q = query(collection(db, "messages"), where("authorId", "==", currentUser.uid));
             const snapshot = await getDocs(q);
             snapshot.forEach(async (docSnap) => {
@@ -244,19 +343,22 @@ function renderMainUI() {
                     authorAvatar: getInitials(newName.trim())
                 });
             });
+            // Обновляем в users
+            await setDoc(doc(db, "users", currentUser.uid), { displayName: newName.trim(), avatar: getInitials(newName.trim()) }, { merge: true });
             currentUser = auth.currentUser;
             document.getElementById("miniAvatar").innerText = getInitials(currentUser.displayName);
-            document.getElementById("miniUsername").innerText = currentUser.displayName;
+            document.querySelector(".user-mini-name").innerText = currentUser.displayName;
             document.querySelector(".user-name").innerText = currentUser.displayName;
-            document.getElementById("userAvatar").innerText = getInitials(currentUser.displayName);
+            document.querySelector(".user-avatar").innerText = getInitials(currentUser.displayName);
         }
     });
 
+    // Отправка сообщений
     const sendBtn = document.getElementById("sendMessageBtn");
     const msgInput = document.getElementById("messageInput");
     const imageUpload = document.getElementById("imageUpload");
     const searchInput = document.getElementById("searchInput");
-    const emojiSelect = document.getElementById("emojiSelect");
+    const emojiPickerBtn = document.getElementById("emojiPickerBtn");
 
     sendBtn.onclick = () => { if (msgInput.value.trim()) sendMessage(msgInput.value); };
     msgInput.addEventListener("keypress", (e) => {
@@ -278,46 +380,71 @@ function renderMainUI() {
         const q = e.target.value.toLowerCase();
         if (!q) renderMessages();
         else {
-            const filtered = (window.messagesCache || []).filter(m => m.text.toLowerCase().includes(q) || m.authorName.toLowerCase().includes(q));
+            const filtered = currentMessagesCache.filter(m => m.text.toLowerCase().includes(q) || m.authorName.toLowerCase().includes(q));
             const container = document.getElementById("messagesContainer");
             if (filtered.length === 0) container.innerHTML = '<div style="text-align:center;padding:30px;">🔍 Ничего не найдено</div>';
             else container.innerHTML = filtered.map(msg => renderMessageHtml(msg)).join('');
             attachMessageActions();
         }
     };
-    emojiSelect.onchange = () => {
-        if (emojiSelect.value) {
-            msgInput.value += emojiSelect.value;
-            msgInput.focus();
-            emojiSelect.value = "";
-        }
+
+    // Простой эмодзи-пикер
+    emojiPickerBtn.onclick = () => {
+        const emojis = ['😀','😂','👍','❤️','🚀','😢','🎉','🔥'];
+        const picker = document.createElement('div');
+        picker.className = 'mention-suggest';
+        picker.style.position = 'absolute';
+        picker.style.bottom = '70px';
+        picker.style.left = '20px';
+        picker.innerHTML = emojis.map(e => `<div style="font-size:1.5rem;padding:5px 10px;">${e}</div>`).join('');
+        document.body.appendChild(picker);
+        picker.addEventListener('click', (e) => {
+            if (e.target.tagName === 'DIV') {
+                msgInput.value += e.target.innerText;
+                picker.remove();
+            }
+        });
+        setTimeout(() => picker.remove(), 5000);
     };
+
+    // Профиль (модалка)
+    document.getElementById("userProfileBtn").addEventListener("click", () => {
+        alert(`Профиль: ${currentUser.displayName}\nEmail: ${currentUser.email}`);
+    });
 }
 
 function renderMessageHtml(msg) {
     let imgHtml = '';
     if (msg.image && msg.image.startsWith('data:image/')) {
-        imgHtml = `<img src="${msg.image}" class="uploaded-img" alt="image">`;
+        imgHtml = `<img src="${msg.image}" class="uploaded-img" alt="image" onclick="showImageModal('${msg.image}')">`;
     }
+    const reactionsHtml = Array.from(msg.reactions?.entries() || []).map(([emoji, count]) => `
+        <div class="reaction" data-msg-id="${msg.id}" data-emoji="${emoji}">
+            <span class="reaction-emoji">${emoji}</span>
+            <span class="reaction-count">${count}</span>
+        </div>
+    `).join('');
     return `
         <div class="message-card" data-msg-id="${msg.id}">
             <div class="message-avatar">${escapeHtml(msg.authorAvatar || getInitials(msg.authorName))}</div>
             <div class="message-content">
                 <div class="message-meta">
                     <span class="message-author">${escapeHtml(msg.authorName)}</span>
-                    <span class="message-time">${formatTime(msg.timestamp?.toDate?.()?.getTime() || Date.now())}${msg.edited ? ' (ред.)' : ''}</span>
+                    <span class="message-time">${formatTime(msg.timestamp)}${msg.edited ? ' (ред.)' : ''}</span>
                 </div>
                 <div class="message-text">${imgHtml}${parseMarkdown(msg.text)}</div>
+                ${reactionsHtml ? `<div class="reactions">${reactionsHtml}</div>` : ''}
             </div>
             <div class="message-actions">
                 ${msg.authorId === currentUser?.uid ? `<button class="action-btn edit-msg" data-id="${msg.id}">✏️</button><button class="action-btn del-msg" data-id="${msg.id}">🗑️</button>` : ''}
+                <button class="action-btn react-msg" data-id="${msg.id}">➕</button>
             </div>
         </div>
     `;
 }
 
 function renderMessages() {
-    const messages = window.messagesCache || [];
+    const messages = currentMessagesCache;
     messages.sort((a,b) => (a.timestamp?.toDate?.()?.getTime() || 0) - (b.timestamp?.toDate?.()?.getTime() || 0));
     const container = document.getElementById("messagesContainer");
     if (!messages.length) {
@@ -334,7 +461,7 @@ function attachMessageActions() {
         btn.onclick = (e) => {
             e.stopPropagation();
             const id = btn.dataset.id;
-            const oldMsg = (window.messagesCache || []).find(m => m.id === id);
+            const oldMsg = currentMessagesCache.find(m => m.id === id);
             if (oldMsg && oldMsg.authorId === currentUser.uid) {
                 const newText = prompt("Редактировать:", oldMsg.text);
                 if (newText !== null) editMessage(id, newText, oldMsg.image);
@@ -347,6 +474,33 @@ function attachMessageActions() {
             if (confirm("Удалить?")) deleteMessage(btn.dataset.id);
         };
     });
+    document.querySelectorAll('.react-msg').forEach(btn => {
+        btn.onclick = async (e) => {
+            e.stopPropagation();
+            const msgId = btn.dataset.id;
+            const emoji = prompt("Введите эмодзи (например 👍, ❤️):", "👍");
+            if (emoji) await toggleReaction(msgId, emoji);
+        };
+    });
+    document.querySelectorAll('.reaction').forEach(react => {
+        react.onclick = async (e) => {
+            e.stopPropagation();
+            const msgId = react.dataset.msgId;
+            const emoji = react.dataset.emoji;
+            await toggleReaction(msgId, emoji);
+        };
+    });
+    document.querySelectorAll('.uploaded-img').forEach(img => {
+        img.onclick = () => showImageModal(img.src);
+    });
+}
+
+function showImageModal(src) {
+    const modal = document.createElement('div');
+    modal.className = 'image-modal';
+    modal.innerHTML = `<img src="${src}" alt="Preview"><div style="position:absolute;top:20px;right:30px;color:white;font-size:30px;cursor:pointer;">✖</div>`;
+    document.body.appendChild(modal);
+    modal.onclick = () => modal.remove();
 }
 
 function renderSidebar() {
@@ -387,10 +541,14 @@ function scrollToBottom() {
     if (c) c.scrollTop = c.scrollHeight;
 }
 
-// ---------- СТАРТ ПРИЛОЖЕНИЯ ----------
-onAuthStateChanged(auth, (user) => {
+// Глобальная функция для модалки изображения
+window.showImageModal = showImageModal;
+
+// ---------- СТАРТ ----------
+onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentUser = user;
+        await setUserOnline(user);
         renderMainUI();
     } else {
         currentUser = null;
